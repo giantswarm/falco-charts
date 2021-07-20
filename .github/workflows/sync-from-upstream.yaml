@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Sync falco from upstream
-        uses: giantswarm/subtree-util@v0.1.2
+        uses: giantswarm/subtree-util@no-force
         with:
           target_github_token: ${{ secrets.ARCHITECT_BOT_GITHUB_REPO_SYNC_TOKEN }}
           target_repository: giantswarm/falco-app
@@ -23,7 +23,7 @@ jobs:
           source_path: falco
 
       - name: Sync falco-exporter from upstream
-        uses: giantswarm/subtree-util@v0.1.2
+        uses: giantswarm/subtree-util@no-force
         with:
           target_github_token: ${{ secrets.ARCHITECT_BOT_GITHUB_REPO_SYNC_TOKEN }}
           target_repository: giantswarm/falco-app
@@ -31,7 +31,7 @@ jobs:
           source_path: falco-exporter
 
       - name: Sync falcosidekick from upstream
-        uses: giantswarm/subtree-util@v0.1.2
+        uses: giantswarm/subtree-util@no-force
         with:
           target_github_token: ${{ secrets.ARCHITECT_BOT_GITHUB_REPO_SYNC_TOKEN }}
           target_repository: giantswarm/falco-app
