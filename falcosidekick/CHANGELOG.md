@@ -5,6 +5,24 @@ numbering uses [semantic versioning](http://semver.org).
 
 Before release 0.1.20, the helm chart can be found in `falcosidekick` [repository](https://github.com/falcosecurity/falcosidekick/tree/master/deploy/helm/falcosidekick).
 
+## 0.3.15
+
+### Major Changes
+
+* Add `Fission` output
+
+## 0.3.14
+
+### Major Changes
+
+* Add `Grafana` output
+* Add `Yandex Cloud S3` output
+* Add `Kafka REST` output
+
+### Minor changes
+
+* Docker image is now available on AWS ECR Public Gallery (`--set image.registry=public.ecr.aws`)
+
 ## 0.3.13
 
 ### Minor changes
