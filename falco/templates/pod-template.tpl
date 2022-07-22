@@ -178,7 +178,7 @@ spec:
         {{- end }}
   initContainers:
   {{- with .Values.extra.initContainers }}
-    {{- toYaml .Values.extra.initContainers | nindent 8 }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
   {{- if .Values.driver.enabled }}
   {{- if and .Values.driver.loader.enabled .Values.driver.loader.initContainer.enabled }}
@@ -294,6 +294,10 @@ spec:
   {{- if eq .Values.driver.kind "ebpf" }}
     - name: FALCO_BPF_PROBE
       value: {{ .Values.driver.ebpf.path }}
+  {{- end }}
+  {{- range $key, $value := .Values.driver.loader.initContainer.env }}
+    - name: "{{ $key }}"
+      value: "{{ $value }}"
   {{- end }}
 {{- end -}}
 
