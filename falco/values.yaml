@@ -119,6 +119,10 @@ healthChecks:
     # -- Specifies that the kubelet should perform the check every x seconds.
     periodSeconds: 15
 
+# -- Attach the Falco process to a tty inside the container. Needed to flush Falco logs as soon as they are emitted.
+# Set it to "true" when you need the Falco logs to be immediately displayed.
+tty: false
+
 #########################
 # Scenario requirements #
 #########################
@@ -156,6 +160,8 @@ mounts:
   volumes: []
   # -- A list of volumes you want to add to the Falco pods.
   volumeMounts: []
+  # -- By default, `/proc` from the host is only mounted into the Falco pod when `driver.enabled` is set to `true`. This flag allows it to override this behaviour for edge cases where `/proc` is needed but syscall data source is not enabled at the same time (e.g. for specific plugins).
+  enforceProcMount: false
 
 # Driver settings (scenario requirement)
 driver:

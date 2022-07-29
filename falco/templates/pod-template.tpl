@@ -27,8 +27,8 @@ spec:
   dnsPolicy: ClusterFirstWithHostNet
   {{- end }}
   {{- end }}
-  {{- if .Values.priorityClassName }}
-  priorityClassName: {{ .Values.priorityClassName }}
+  {{- if .Values.podPriorityClassName }}
+  priorityClassName: {{ .Values.podPriorityClassName }}
   {{- end }}
   {{- with .Values.nodeSelector }}
   nodeSelector:
@@ -100,6 +100,7 @@ spec:
           value: "{{ $value }}"
       {{- end }}
       {{- if .Values.falco.webserver.enabled }}
+      tty: {{ .Values.tty }}
       livenessProbe:
         initialDelaySeconds: {{ .Values.healthChecks.livenessProbe.initialDelaySeconds }}
         timeoutSeconds: {{ .Values.healthChecks.livenessProbe.timeoutSeconds }}
@@ -124,8 +125,10 @@ spec:
       volumeMounts:
         - mountPath: /root/.falco
           name: root-falco-fs
+        {{- if or .Values.driver.enabled .Values.mounts.enforceProcMount }}
         - mountPath: /host/proc
           name: proc-fs
+        {{- end }}
         {{- if and .Values.driver.enabled (not .Values.driver.loader.initContainer.enabled) }}
           readOnly: true
         - mountPath: /host/boot
@@ -226,9 +229,11 @@ spec:
     {{- end }}
     {{- end }}
     {{- end }}
+    {{- if or .Values.driver.enabled .Values.mounts.enforceProcMount }}
     - name: proc-fs
       hostPath:
         path: /proc
+    {{- end }}
     - name: config-volume
       configMap:
         name: {{ include "falco.fullname" . }}
