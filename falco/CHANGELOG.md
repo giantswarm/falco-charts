@@ -3,6 +3,17 @@
 This file documents all notable changes to Falco Helm Chart. The release
 numbering uses [semantic versioning](http://semver.org).
 
+## v2.0.10
+
+* Fix name of the falco certs secret.
+## v2.0.9
+
+* Fix the `certs-secret.yaml` template by correctly pointing to the root context when using the helpers.
+
+## v2.0.8
+
+* When using ebpf probe Falco is deployed in `privileged` mode instead of `least privileged`.
+
 ## v2.0.7
 
 * Fix templating for priorityClassName in pod-template.tpl
