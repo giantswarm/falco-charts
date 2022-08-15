@@ -3,9 +3,34 @@
 This file documents all notable changes to Falco Helm Chart. The release
 numbering uses [semantic versioning](http://semver.org).
 
+## v2.0.16
+
+* Allow setting `resources` and `securityContext` on the `falco-driver-loader` init container
+
+## v2.0.15
+
+* Allow passing args to the `falco-driver-loader` init container
+
+## v2.0.14
+
+* Fix debugfs mount when `falco-no-driver` image and ebpf driver is used
+
+## v2.0.13
+
+* Upgrade Falco to 0.32.2
+
+## v2.0.12
+
+* Fully disable the driver when running in CI
+
+## v2.0.11
+
+* Correct CI values.
+
 ## v2.0.10
 
 * Fix name of the falco certs secret.
+
 ## v2.0.9
 
 * Fix the `certs-secret.yaml` template by correctly pointing to the root context when using the helpers.
