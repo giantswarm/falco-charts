@@ -56,6 +56,7 @@ spec:
         {{- include "falco.securityContext" . | nindent 8 }}
       args:
         - /usr/bin/falco
+        {{- include "falco.configSyscallSource" . | indent 8 }}
         {{- with .Values.collectors }}
         {{- if .enabled }}
         {{- if .containerd.enabled }}
@@ -147,6 +148,8 @@ spec:
         - mountPath: /host/dev
           name: dev-fs
           readOnly: true
+        - name: sys-fs
+          mountPath: /sys/module/falco
         {{- end }}
         {{- if and .Values.driver.enabled (and (eq .Values.driver.kind "ebpf") (contains "falco-no-driver" .Values.image.repository)) }}
         - name: debugfs
@@ -213,6 +216,9 @@ spec:
     - name: dev-fs
       hostPath:
         path: /dev
+    - name: sys-fs
+      hostPath:
+        path: /sys/module/falco
     {{- end }}
     {{- if and .Values.driver.enabled (and (eq .Values.driver.kind "ebpf") (contains "falco-no-driver" .Values.image.repository)) }}
     - name: debugfs
