@@ -60,6 +60,9 @@ spec:
         {{- include "falco.securityContext" . | nindent 8 }}
       args:
         - /usr/bin/falco
+        {{- if and .Values.driver.enabled (eq .Values.driver.kind "modern-bpf") }}
+        - --modern-bpf
+        {{- end }}
         {{- if .Values.gvisor.enabled }}
         - --gvisor-config
         - /gvisor-config/pod-init.json
@@ -98,17 +101,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-      {{- if or (not .Values.driver.enabled) (and .Values.driver.loader.enabled .Values.driver.loader.initContainer.enabled) }}
-        - name: SKIP_DRIVER_LOADER
-          value:
-      {{- end }}
       {{- if and .Values.driver.enabled (eq .Values.driver.kind "ebpf") }}
         - name: FALCO_BPF_PROBE
           value: {{ .Values.driver.ebpf.path }}
       {{- end }}
-      {{- range $key, $value := .Values.extra.env }}
-        - name: "{{ $key }}"
-          value: "{{ $value }}"
+      {{- if .Values.extra.env }}
+      {{- include "falco.renderTemplate" ( dict "value" .Values.extra.env "context" $) | nindent 8 }}
       {{- end }}
       tty: {{ .Values.tty }}
       {{- if .Values.falco.webserver.enabled }}
@@ -134,13 +132,23 @@ spec:
           {{- end }}
       {{- end }}
       volumeMounts:
+      {{- if or .Values.falcoctl.artifact.install.enabled .Values.falcoctl.artifact.follow.enabled }}
+      {{- if has "rulesfile" .Values.falcoctl.config.artifact.allowedTypes }}
+        - mountPath: /etc/falco
+          name: rulesfiles-install-dir
+      {{- end }}
+      {{- if has "plugin" .Values.falcoctl.config.artifact.allowedTypes }}
+        - mountPath: /usr/share/falco/plugins
+          name: plugins-install-dir
+      {{- end }}
+      {{- end }}
         - mountPath: /root/.falco
           name: root-falco-fs
         {{- if or .Values.driver.enabled .Values.mounts.enforceProcMount }}
         - mountPath: /host/proc
           name: proc-fs
         {{- end }}
-        {{- if and .Values.driver.enabled (not .Values.driver.loader.initContainer.enabled) }}
+        {{- if and .Values.driver.enabled (not .Values.driver.loader.enabled) }}
           readOnly: true
         - mountPath: /host/boot
           name: boot-fs
@@ -181,8 +189,9 @@ spec:
         {{- end }}
         {{- end }}
         {{- end }}
-        - mountPath: /etc/falco
-          name: config-volume
+        - mountPath: /etc/falco/falco.yaml
+          name: falco-yaml
+          subPath: falco.yaml
         {{- if .Values.customRules }}
         - mountPath: /etc/falco/rules.d
           name: rules-volume
@@ -207,6 +216,9 @@ spec:
         - mountPath: /gvisor-config
           name: falco-gvisor-config
         {{- end }}
+  {{- if .Values.falcoctl.artifact.follow.enabled }}
+    {{- include "falcoctl.sidecar" . | nindent 4 }}
+  {{- end }}
   initContainers:
   {{- with .Values.extra.initContainers }}
     {{- toYaml . | nindent 4 }}
@@ -214,12 +226,21 @@ spec:
   {{- if and .Values.gvisor.enabled }}
   {{- include "falco.gvisor.initContainer" . | nindent 4 }}
   {{- end }}
-  {{- if .Values.driver.enabled }}
-  {{- if and .Values.driver.loader.enabled .Values.driver.loader.initContainer.enabled }}
+  {{- if and .Values.driver.enabled (ne .Values.driver.kind "modern-bpf") }}
+  {{- if.Values.driver.loader.enabled }}
     {{- include "falco.driverLoader.initContainer" . | nindent 4 }}
   {{- end }}
   {{- end }}
+  {{- if .Values.falcoctl.artifact.install.enabled }}
+    {{- include "falcoctl.initContainer" . | nindent 4 }}
+  {{- end }}
   volumes:
+    {{- if or .Values.falcoctl.artifact.install.enabled .Values.falcoctl.artifact.follow.enabled }}
+    - name: plugins-install-dir
+      emptyDir: {}
+    - name: rulesfiles-install-dir
+      emptyDir: {}
+    {{- end }}
     - name: root-falco-fs
       emptyDir: {}
     {{- if .Values.driver.enabled }}  
@@ -288,22 +309,18 @@ spec:
     - name: falco-gvisor-config
       emptyDir: {}
     {{- end }}
-    - name: config-volume
+    - name: falcoctl-config-volume
+      configMap: 
+        name: {{ include "falco.fullname" . }}-falcoctl
+        items:
+          - key: falcoctl.yaml
+            path: falcoctl.yaml
+    - name: falco-yaml
       configMap:
         name: {{ include "falco.fullname" . }}
         items:
-          - key: falco.yaml
-            path: falco.yaml
-          - key: falco_rules.yaml
-            path: falco_rules.yaml
-          - key: falco_rules.local.yaml
-            path: falco_rules.local.yaml
-          - key: application_rules.yaml
-            path: rules.available/application_rules.yaml
-          - key: k8s_audit_rules.yaml
-            path: k8s_audit_rules.yaml
-          - key: aws_cloudtrail_rules.yaml
-            path: aws_cloudtrail_rules.yaml
+        - key: falco.yaml
+          path: falco.yaml
     {{- if .Values.customRules }}
     - name: rules-volume
       configMap:
@@ -364,16 +381,15 @@ spec:
     - name: FALCO_BPF_PROBE
       value: {{ .Values.driver.ebpf.path }}
   {{- end }}
-  {{- range $key, $value := .Values.driver.loader.initContainer.env }}
-    - name: "{{ $key }}"
-      value: "{{ $value }}"
+  {{- if .Values.driver.loader.initContainer.env }}
+  {{- include "falco.renderTemplate" ( dict "value" .Values.driver.loader.initContainer.env "context" $) | nindent 4 }}
   {{- end }}
 {{- end -}}
 
 {{- define "falco.securityContext" -}}
 {{- $securityContext := dict -}}
 {{- if .Values.driver.enabled -}}
-  {{- if eq .Values.driver.kind "module" -}}
+  {{- if or (eq .Values.driver.kind "module") (eq .Values.driver.kind "modern-bpf") -}}
     {{- $securityContext := set $securityContext "privileged" true -}}
   {{- end -}}
   {{- if eq .Values.driver.kind "ebpf" -}}
