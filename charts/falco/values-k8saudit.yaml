@@ -1,6 +1,3 @@
-# CI values for Falco.
-# To deploy Falco on CI we need to set an argument to bypass the installation
-# of the kernel module, so we bypass that.
 # -- Disable the drivers since we want to deploy only the k8saudit plugin.
 driver:
   enabled: false
@@ -8,6 +5,15 @@ driver:
 # -- Disable the collectors, no syscall events to enrich with metadata.
 collectors:
   enabled: false
+
+# -- Deploy Falco as a deployment. One instance of Falco is enough. Anyway the number of replicas is configurabale.
+controller:
+  kind: deployment
+  deployment:
+    # -- Number of replicas when installing Falco using a deployment. Change it if you really know what you are doing.
+    # For more info check the section on Plugins in the README.md file.
+    replicas: 1
+
 
 falcoctl:
   artifact:
@@ -20,13 +26,11 @@ falcoctl:
   config:
     artifact:
       install:
-        # -- Resolve the dependencies for artifacts.
-        resolveDeps: true
         # -- List of artifacts to be installed by the falcoctl init container.
-        refs: [k8saudit-rules:0.6]
+        refs: [k8saudit-rules:0.7]
       follow:
         # -- List of artifacts to be followed by the falcoctl sidecar container.
-        refs: [k8saudit-rules:0.6]
+        refs: [k8saudit-rules:0.7]
 
 services:
   - name: k8saudit-webhook
@@ -46,14 +50,10 @@ falco:
       init_config:
         ""
         # maxEventBytes: 1048576
-      # sslCertificate: /etc/falco/falco.pem
+        # sslCertificate: /etc/falco/falco.pem
       open_params: "http://:9765/k8s-audit"
     - name: json
       library_path: libjson.so
       init_config: ""
   # Plugins that Falco will load. Note: the same plugins are installed by the falcoctl-artifact-install init container.
   load_plugins: [k8saudit, json]
-  grpc:
-    enabled: true
-  grpc_output:
-    enabled: true
