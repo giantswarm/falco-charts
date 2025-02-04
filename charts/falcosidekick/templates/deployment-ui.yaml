@@ -13,6 +13,13 @@ metadata:
   labels:
     {{- include "falcosidekick.labels" . | nindent 4 }}
     app.kubernetes.io/component: ui
+    {{- with .Values.webui.customLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    {{- with .Values.webui.customAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   replicas: {{ .Values.webui.replicaCount }}
   {{- if .Values.webui.revisionHistoryLimit }}
@@ -49,17 +56,43 @@ spec:
       securityContext:
       {{- toYaml .Values.webui.podSecurityContext | nindent 8}}
       {{- end }}
+      initContainers:
+        - name: wait-redis
+          image: "{{ .Values.webui.initContainer.image.registry }}/{{ .Values.webui.initContainer.image.repository }}:{{ .Values.webui.initContainer.image.tag }}"
+          command:
+            - sh
+            - -c
+            - /scripts/ping-redis.sh
+          {{- if .Values.webui.initContainer.resources }}
+          resources:
+          {{- toYaml .Values.webui.initContainer.resources | nindent 12 }}
+          {{- end }}
+          {{- if .Values.webui.initContainer.securityContext }}
+          securityContext:
+          {{- toYaml .Values.webui.initContainer.securityContext | nindent 12}}
+          {{- end }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts/ping-redis.sh
+              subPath: ping-redis.sh
+          envFrom:
+            - secretRef:
+                name: {{ include "falcosidekick.fullname" . }}-ui
+            {{- if .Values.webui.existingSecret }}
+            - secretRef:
+                name: {{ .Values.webui.existingSecret }}
+            {{- end }}
       containers:
         - name: {{ .Chart.Name }}-ui
           image: "{{ .Values.webui.image.registry }}/{{ .Values.webui.image.repository }}:{{ .Values.webui.image.tag }}"
           imagePullPolicy: {{ .Values.webui.image.pullPolicy }}
           envFrom:
             - secretRef:
-                {{- if .Values.webui.existingSecret }}
-                name: {{ .Values.webui.existingSecret }}
-                {{- else }}
                 name: {{ include "falcosidekick.fullname" . }}-ui
-                {{- end }}
+            {{- if .Values.webui.existingSecret }}
+            - secretRef:
+                name: {{ .Values.webui.existingSecret }}
+            {{- end }}
           args:
             - "-r"
             {{- if .Values.webui.redis.enabled }}
@@ -115,6 +148,14 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "falcosidekick.fullname" . }}-ui-redis
+            defaultMode: 0555
+            items:
+              - key: ping-redis.sh
+                path: ping-redis.sh
 {{- if .Values.webui.redis.enabled }}
 ---
 apiVersion: apps/v1
@@ -197,10 +238,17 @@ spec:
           securityContext:
           {{- toYaml .Values.webui.redis.securityContext | nindent 12 }}
           {{- end }}
-          {{- if .Values.webui.redis.storageEnabled }}
+          {{- if or (.Values.webui.redis.storageEnabled) (.Values.webui.redis.customConfig) }}
           volumeMounts:
+          {{- if .Values.webui.redis.storageEnabled }}
           - name: {{ include "falcosidekick.fullname" . }}-ui-redis-data
             mountPath: /data
+          {{- end }}
+          {{- if .Values.webui.redis.customConfig }}
+          - name: config
+            mountPath: /redis-stack.conf
+            subPath: redis-stack.conf
+          {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.webui.redis.resources | nindent 12 }}
@@ -216,6 +264,16 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{ if .Values.webui.redis.customConfig }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "falcosidekick.fullname" . }}-ui-redis
+            defaultMode: 0444
+            items:
+              - key: redis-stack.conf
+                path: redis-stack.conf
+      {{ end }}
   {{- if .Values.webui.redis.storageEnabled }}
   volumeClaimTemplates:
     - metadata:
